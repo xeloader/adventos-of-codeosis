@@ -3,8 +3,10 @@ type MarbleColor = 'red' | 'green' | 'blue'
 
 type MarbleInventory = Record<MarbleColor, number>
 
+type MarbleHand = Partial<MarbleInventory>
+
 interface Round {
-  hand: Partial<MarbleInventory>
+  hand: MarbleHand
 }
 
 interface Game {
@@ -64,18 +66,34 @@ const validGame = (game: Game, marblesAvailable: MarbleInventory): boolean => {
   return true
 }
 
-const extractHand = ({ rounds }: Game): Array<Partial<MarbleInventory>> => rounds.map(({ hand }) => hand)
+const minimumNumberOfMarbles = (game: Game): MarbleHand => {
+  const minimumNumber: MarbleHand = {}
+  for (const round of game.rounds) {
+    const marbles = Object.entries(round.hand)
+    for (const [marbleColor, amount] of marbles) {
+      const curAmount = minimumNumber?.[marbleColor as MarbleColor] ?? 0
+      if (amount > curAmount) {
+        minimumNumber[marbleColor as MarbleColor] = amount
+      }
+    }
+  }
+  return minimumNumber
+}
+
+const extractHand = ({ rounds }: Game): MarbleHand[] => rounds.map(({ hand }) => hand)
 
 export const main = (): void => {
   const exampleInput = fs.readFileSync('./data/02/full.txt').toString()
   const games = parseGames(exampleInput)
-  // console.log(games.map(extractHand))
-  // console.log('---- AFTER ----')
   const validGames = games.filter((game) => validGame(game, MARBLE_INVENTORY))
-  // console.log(games
-  //   .filter((game) => validGame(game, MARBLE_INVENTORY))
-  //   .map(extractHand))
-  // console.log('----RESULT----')
-  const result = validGames.reduce((acc, game) => acc + game.id, 0)
-  console.log(`Result: ${result}`)
+  const resultPt1 = validGames.reduce((acc, game) => acc + game.id, 0)
+  console.log(`Result Pt.1: ${resultPt1}`)
+
+  const minimumMarblesPerGame = games.map(minimumNumberOfMarbles)
+  const resultPt2 = minimumMarblesPerGame
+    .map((marbles) => Object.values(marbles)
+      .reduce((acc, cur) => acc * cur, 1)
+    )
+    .reduce((acc, cur) => acc + cur, 0)
+  console.log(`Result Pt.2: ${resultPt2}`)
 }
