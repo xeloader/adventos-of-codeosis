@@ -1,4 +1,5 @@
 import fs from 'fs'
+import { isNumber } from '@/helpers'
 
 interface DigitMapping {
   [key: string]: number
@@ -15,8 +16,6 @@ const TEXT_DIGITS: DigitMapping = {
   eight: 8,
   nine: 9
 }
-
-const isNumber = (character: string): boolean => character <= '9' && character >= '0'
 
 const isReadableNumber = (line: string): boolean => TEXT_DIGITS[line] != null
 const valueOfNumber = (line: string): number => TEXT_DIGITS[line]
