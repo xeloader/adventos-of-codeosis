@@ -16,6 +16,19 @@ interface SchematicNumber {
   length: number
 }
 
+type SchematicPartSmall = Pick<SchematicPart, 'value' | 'location'>
+
+interface SymbolToPart {
+  symbol: SchematicSymbol
+  parts: SchematicPartSmall[]
+}
+
+interface SchematicGear {
+  symbol: SchematicSymbol
+  ratio: number
+  parts: SchematicPartSmall[]
+}
+
 interface SchematicSymbol {
   location: Coordinate
   value: string
@@ -96,6 +109,37 @@ const typeOfChar = (char: string): SchematicType => {
   }
 }
 
+const gearsFromSchematic = (schematic: Schematic): SchematicGear[] => {
+  const parts = partsFromSchematic(schematic)
+
+  const symbolToParts: { [key: string]: SymbolToPart } = {}
+  for (const part of parts) {
+    for (const symbol of part.symbols) {
+      const serialSymbol = `${symbol.location.y}-${symbol.location.x}-${symbol.value}`
+      if (symbolToParts[serialSymbol] == null) {
+        symbolToParts[serialSymbol] = {
+          symbol,
+          parts: []
+        }
+      }
+      symbolToParts[serialSymbol].parts.push({
+        value: part.value,
+        location: part.location
+      })
+    }
+  }
+  const gears: SchematicGear[] = Object.values(symbolToParts)
+    .filter(({ symbol, parts }) => symbol.value === '*' && parts.length > 1)
+    .map(({ symbol, parts }) => {
+      return {
+        symbol,
+        parts,
+        ratio: parts.reduce((acc, cur) => acc * cur.value, 1)
+      }
+    })
+  return gears
+}
+
 const partsFromSchematic = (schematic: Schematic): SchematicPart[] => {
   return schematic.numbers
     .map((number): SchematicPart => {
@@ -169,7 +213,15 @@ const parseSchematic = (input: string): Schematic => {
 export const main = (): void => {
   const input = fs.readFileSync('./data/03/full.txt').toString()
   const schematic = parseSchematic(input)
-  const parts = partsFromSchematic(schematic)
-  const result = parts.reduce((acc, cur) => acc + cur.value, 0)
-  console.log('Result: ', result)
+  console.log('Result Pt1: ', (() => {
+    const parts = partsFromSchematic(schematic)
+    const result = parts.reduce((acc, cur) => acc + cur.value, 0)
+    return result
+  })())
+
+  console.log('Result Pt2: ', (() => {
+    const gears = gearsFromSchematic(schematic)
+    const result = gears.reduce((acc, cur) => acc + cur.ratio, 0)
+    return result
+  })())
 }
