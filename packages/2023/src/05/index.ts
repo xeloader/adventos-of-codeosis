@@ -6,6 +6,11 @@ interface Range {
   destinationStart: number
   length: number
 }
+interface SeedRange {
+  start: number
+  length: number
+}
+
 interface Map {
   destination: MapCategory
   source: MapCategory
@@ -14,6 +19,11 @@ interface Map {
 
 interface Almanac {
   seeds: number[]
+  maps: Map[]
+}
+
+interface AlmanacRange {
+  seeds: SeedRange[]
   maps: Map[]
 }
 
@@ -49,6 +59,23 @@ function translate (
   return inputValue
 }
 
+function reducePath (
+  range: SeedRange,
+  source: MapCategory,
+  destination: MapCategory,
+  almanac: Almanac,
+  cb: (acc: number, cur: number) => number,
+  init: number = 0
+): number {
+  let acc = init
+  for (let i = 0; i < range.length - 1; i++) {
+    const value = range.start + i
+    const result = translate(value, source, destination, almanac)
+    acc = cb(acc, result)
+  }
+  return acc
+}
+
 function pathsFor (
   source: MapCategory,
   destination: MapCategory
@@ -82,6 +109,24 @@ function parseMap (mapNote: string): Map {
   }
 }
 
+function toRangedAlmanac (almanac: Almanac): AlmanacRange {
+  let ptr = 0
+  const rangedSeeds: SeedRange[] = []
+  while (ptr < almanac.seeds.length) {
+    const seed = almanac.seeds[ptr]
+    const length = almanac.seeds[ptr + 1]
+    rangedSeeds.push({
+      start: seed,
+      length
+    })
+    ptr += 2
+  }
+  return {
+    ...almanac,
+    seeds: rangedSeeds
+  }
+}
+
 function parseAlmanac (input: string): Almanac {
   const [seedNote, ...mapNotes] = input.split('\n\n')
   const maps = mapNotes.map(parseMap)
@@ -102,11 +147,28 @@ function parseAlmanac (input: string): Almanac {
 }
 
 export function main (): void {
-  const input = fs.readFileSync('./data/05/full.txt').toString()
+  const input = fs.readFileSync('./data/05/example.txt').toString()
   const almanac = parseAlmanac(input)
   console.log('Result pt.1: ', (() => {
     const nearestLocation = almanac.seeds
       .reduce((acc, seed) => Math.min(acc, translate(seed, 'seed', 'location', almanac)), Number.POSITIVE_INFINITY)
     return nearestLocation
+  })())
+  console.log('Result pt.2: ', (() => { // this one runs for about... 20 mins lol
+    const rangedAlmanac = toRangedAlmanac(almanac)
+    let result = Number.POSITIVE_INFINITY
+    for (const range of rangedAlmanac.seeds) {
+      console.log('Checking range', range.start, '=>', range.start + range.length)
+      const shortestPath = reducePath(range, 'seed', 'location', almanac,
+        (acc, length) => {
+          return length < acc
+            ? length
+            : acc
+        }, Number.POSITIVE_INFINITY)
+      result = shortestPath < result
+        ? shortestPath
+        : result
+    }
+    return result
   })())
 }
