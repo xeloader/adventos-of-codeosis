@@ -60,6 +60,18 @@ function getStartIndex (n: number): [number, number] | [number] {
   }
 }
 
+function concatRaces (races: Race[]): Race {
+  const concatRace = races
+    .reduce((acc, race) => ({
+      duration: acc.duration + race.duration.toString(),
+      longestDistance: acc.longestDistance + race.longestDistance.toString()
+    }), { duration: '', longestDistance: '' })
+  return {
+    duration: Number(concatRace.duration),
+    longestDistance: Number(concatRace.longestDistance)
+  }
+}
+
 export function main (): void {
   const input = fs.readFileSync('./data/06/full.txt').toString()
   const races = parseRaces(input)
@@ -67,5 +79,9 @@ export function main (): void {
   const winCounts = races.map(waysToWin)
   console.log('Result pt.1: ', (() => {
     return winCounts.reduce((acc, cur) => acc * cur, 1)
+  })())
+  console.log('Result pt.2: ', (() => {
+    const race = concatRaces(races)
+    return waysToWin(race)
   })())
 }
