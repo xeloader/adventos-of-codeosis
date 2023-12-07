@@ -60,6 +60,11 @@ const CARD_VALUES: CardValueMap = {
   A: 14
 }
 
+const CARD_VALUES_JOKER: CardValueMap = {
+  ...CARD_VALUES,
+  J: 1
+}
+
 function valueOfCard (
   type: CardType,
   cardValues: CardValueMap
@@ -175,6 +180,59 @@ function valueHands (
   return hands.map((hand) => valueHand(hand, handValues))
 }
 
+// enjoy <3
+function valueHandsWildcard (
+  hands: Hand[],
+  handValues: HandValueMap,
+  cardValues: CardValueMap,
+  wildcardIds: CardType[] = []
+): GameHand[] {
+  const gameHands = hands.map((hand): GameHand => {
+    const groupedCards = groupCards(hand.cards)
+    const wildCards = groupedCards.filter((gc) => wildcardIds.includes(gc.identifier))
+    const staticCards = groupedCards.filter((gc) => !wildcardIds.includes(gc.identifier))
+    if (wildCards.length > 0) {
+      const identifiers = staticCards
+        .sort((a, b) => {
+          const cardValueDiff = valueOfCard(b.identifier, cardValues) - valueOfCard(a.identifier, cardValues)
+          const cardAmountDiff = b.amount - a.amount
+          if (cardAmountDiff === 0) {
+            return cardValueDiff
+          }
+          return cardAmountDiff
+        })
+        .map(({ identifier }) => identifier)
+      if (identifiers.length > 0) {
+        const bestCardType = identifiers[0]
+        const bestHand: Hand = {
+          ...hand,
+          cards: hand.cards.map((card): Card => {
+            if (wildcardIds.includes(card.identifier)) {
+              return {
+                identifier: bestCardType,
+                value: valueOfCard(bestCardType, cardValues)
+              }
+            } else {
+              return card
+            }
+          })
+        }
+        const valuedHand = valueHand(bestHand, handValues)
+        return {
+          ...valuedHand,
+          cards: hand.cards,
+          cardValue: valueCards(hand.cards)
+        }
+      } else {
+        return valueHand(hand, handValues)
+      }
+    } else {
+      return valueHand(hand, handValues)
+    }
+  })
+  return gameHands
+}
+
 function parseHands (
   input: string,
   cardValues: CardValueMap = {}
@@ -202,11 +260,18 @@ function parseHands (
 
 export function main (): void {
   const input = fs.readFileSync('./data/07/full.txt').toString()
-  const hands = parseHands(input, CARD_VALUES)
-  const gameHands = valueHands(hands, HAND_VALUES)
-  const rankedHands = rankHands(gameHands)
-  console.log(rankedHands.map(({ rank, type, cards }) => [rank, type, cards.map(({ identifier }) => identifier)]))
   console.log('Result pt.1', (() => {
+    const hands = parseHands(input, CARD_VALUES)
+    const gameHands = valueHands(hands, HAND_VALUES)
+    const rankedHands = rankHands(gameHands)
+    // console.log(rankedHands.map(({ rank, type, cards }) => [rank, type, cards.map(({ identifier }) => identifier)]))
+    return rankedHands.reduce((acc, hand) => acc + (hand.bid * hand.rank), 0)
+  })())
+  console.log('Result pt.2', (() => {
+    const hands = parseHands(input, CARD_VALUES_JOKER)
+    const gameHands = valueHandsWildcard(hands, HAND_VALUES, CARD_VALUES_JOKER, ['J'])
+    const rankedHands = rankHands(gameHands)
+    // console.log(rankedHands.map(({ rank, type, cards }) => [rank, type, cards.map(({ identifier }) => identifier)]))
     return rankedHands.reduce((acc, hand) => acc + (hand.bid * hand.rank), 0)
   })())
 }
