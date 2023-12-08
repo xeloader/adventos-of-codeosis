@@ -1,3 +1,4 @@
+import { lcm } from '@/helpers'
 import fs from 'fs'
 
 enum Direction {
@@ -68,8 +69,8 @@ type ParallelTraverseCallback = (
 ) => boolean
 
 function traverseMapsUntil (
-  maps: NetworkMap[],
-  cb: ParallelTraverseCallback
+  cb: ParallelTraverseCallback,
+  maps: NetworkMap[]
 ): number {
   const initDirections = ({ instructions }: NetworkMap): Direction[] => [...instructions]
   let steps = 0
@@ -92,12 +93,12 @@ function traverseMapsUntil (
 }
 
 function traverseMapUntil (
-  map: NetworkMap,
-  cb: TraverseCallback
+  cb: TraverseCallback,
+  map: NetworkMap
 ): number {
   return traverseMapsUntil(
-    [map],
-    (curNodes, steps) => cb(curNodes[0], steps)
+    (curNodes, steps) => cb(curNodes[0], steps),
+    [map]
   )
 }
 
@@ -118,9 +119,9 @@ export function main (): void {
       }
     })
     const results = maps.map((map) => {
-      return traverseMapUntil(map, (curNode) => {
+      return traverseMapUntil((curNode) => {
         return curNode.identifier === 'ZZZ'
-      })
+      }, map)
     })
     return results[0]
   })())
@@ -133,15 +134,27 @@ export function main (): void {
         instructions: mapInfo.instructions,
         map: node
       }))
-    const steps = traverseMapsUntil(
-      startMaps,
-      (curNodes, steps): boolean => {
-        if (steps % 1e7 === 0) {
-          console.log(steps, curNodes.map((node) => node.identifier))
-        }
-        return curNodes.every((node) => node.identifier.at(-1) === 'Z')
+    let prevPos: number[] = startMaps.map(() => -1)
+    traverseMapsUntil((curNodes, steps): boolean => {
+      // calculate number of loops per cycle
+      const zNodes = curNodes.map((node) => node.identifier.at(-1) === 'Z'
+        ? node
+        : null)
+      if (zNodes.length > 0) {
+        prevPos = prevPos.map((pos, i) => zNodes[i] !== null
+          ? steps
+          : pos)
+        return prevPos.every((pos) => pos > -1)
       }
+      return false
+    },
+    startMaps
     )
-    return steps
+    // calculate the number of cycles for ghosts to "match up"
+    // A LOT of hints where needed for this one
+    // i dont even math
+    // shoop
+    return lcm(prevPos)
+    // da woop
   })())
 }
