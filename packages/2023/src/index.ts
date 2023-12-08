@@ -1,3 +1,3 @@
-import { main } from './07'
+import { main } from './08'
 
 main()
