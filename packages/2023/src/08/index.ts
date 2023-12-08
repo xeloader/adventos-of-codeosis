@@ -24,7 +24,12 @@ interface NodeLookupMap {
   [key: string]: NetworkNode
 }
 
-function parseMap (input: string, directionValues: DirectionMap): NetworkMap {
+interface MapInfo {
+  instructions: Direction[]
+  lookup: NodeLookupMap
+  nodes: NetworkNode[]
+}
+function parseMap (input: string, directionValues: DirectionMap): MapInfo {
   const [instructionNode, nodeNotes] = input.split('\n\n')
   const instructions: Direction[] = instructionNode.trim().split('')
     .map((char) => directionValues[char])
@@ -47,43 +52,53 @@ function parseMap (input: string, directionValues: DirectionMap): NetworkMap {
   }
   return {
     instructions,
-    map: lookup.AAA
+    lookup,
+    nodes: nodeList
   }
-}
-
-interface TraverseResult {
-  steps: number
 }
 
 type TraverseCallback = (
   curNode: NetworkNode,
-  prevNode: NetworkNode,
   steps: number
 ) => boolean
+
+type ParallelTraverseCallback = (
+  curNodes: NetworkNode[],
+  steps: number
+) => boolean
+
+function traverseMapsUntil (
+  maps: NetworkMap[],
+  cb: ParallelTraverseCallback
+): number {
+  const initDirections = ({ instructions }: NetworkMap): Direction[] => [...instructions]
+  let steps = 0
+  const directions: Direction[][] = maps.map(initDirections)
+  const curNodes: NetworkNode[] = maps.map(({ map }) => map)
+  while (!cb(curNodes, steps)) {
+    for (let i = 0; i < maps.length; i++) {
+      if (curNodes[i].paths == null) throw new Error('No paths for node')
+      if (directions[i].length === 0) {
+        directions[i] = initDirections(maps[i])
+      }
+      const nextNode = curNodes[i]?.paths?.[directions[i][0]]
+      if (nextNode == null) throw new Error('no next path available')
+      curNodes[i] = nextNode
+      directions[i].shift()
+    }
+    steps += 1
+  }
+  return steps
+}
 
 function traverseMapUntil (
   map: NetworkMap,
   cb: TraverseCallback
-): TraverseResult {
-  let steps = 0
-  let curNode: NetworkNode = map.map
-  let prevNode: NetworkNode | null = null
-  let directionsLeft = [...map.instructions]
-  do {
-    if (curNode.paths == null) throw new Error('No paths for node')
-    if (directionsLeft.length === 0) {
-      directionsLeft = [...map.instructions]
-    }
-    const nextNode = curNode.paths[directionsLeft[0]]
-    if (nextNode == null) throw new Error('no next path available')
-    curNode = nextNode
-    directionsLeft.shift()
-    prevNode = curNode
-    steps += 1
-  } while (!cb(curNode, prevNode, steps))
-  return {
-    steps
-  }
+): number {
+  return traverseMapsUntil(
+    [map],
+    (curNodes, steps) => cb(curNodes[0], steps)
+  )
 }
 
 const DIRECTION_VALUES: DirectionMap = {
@@ -95,13 +110,38 @@ export function main (): void {
   console.log('Result pt.1', (() => {
     const input = fs.readFileSync('./data/08/full.txt').toString()
     const inputs = [input]
-    const maps = inputs.map((input) => parseMap(input, DIRECTION_VALUES))
+    const maps = inputs.map((input): NetworkMap => {
+      const mapInfo = parseMap(input, DIRECTION_VALUES)
+      return {
+        instructions: mapInfo.instructions,
+        map: mapInfo.lookup.AAA
+      }
+    })
     const results = maps.map((map) => {
-      return traverseMapUntil(map, (curNode, prevNode, steps) => {
-        // console.log(steps, curNode.identifier, prevNode.identifier)
+      return traverseMapUntil(map, (curNode) => {
         return curNode.identifier === 'ZZZ'
       })
     })
     return results[0]
+  })())
+  console.log('Result pt.2', (() => {
+    const input = fs.readFileSync('./data/08/full.txt').toString()
+    const mapInfo = parseMap(input, DIRECTION_VALUES)
+    const startMaps: NetworkMap[] = mapInfo.nodes
+      .filter((node) => node.identifier.at(-1) === 'A')
+      .map((node): NetworkMap => ({
+        instructions: mapInfo.instructions,
+        map: node
+      }))
+    const steps = traverseMapsUntil(
+      startMaps,
+      (curNodes, steps): boolean => {
+        if (steps % 1e7 === 0) {
+          console.log(steps, curNodes.map((node) => node.identifier))
+        }
+        return curNodes.every((node) => node.identifier.at(-1) === 'Z')
+      }
+    )
+    return steps
   })())
 }
