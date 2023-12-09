@@ -40,6 +40,14 @@ function predictNextValue (values: number[]): number {
 export function main (): void {
   const input = fs.readFileSync('./data/09/full.txt').toString()
   const values = parseValues(input)
-  const predictions = values.map(predictNextValue)
-  console.log('Result pt.1', predictions.reduce((acc, cur) => acc + cur, 0))
+  console.log('Result pt.1', (() => {
+    const predictions = values.map(predictNextValue)
+    return predictions.reduce((acc, cur) => acc + cur, 0)
+  })())
+  console.log('Result pt.2', (() => {
+    const predictions = values
+      .map((vals) => vals.reverse()) // lol
+      .map(predictNextValue)
+    return predictions.reduce((acc, cur) => acc + cur, 0)
+  })())
 }
