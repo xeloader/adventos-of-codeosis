@@ -55,7 +55,7 @@ function parsePipes (
   }
 }
 
-function nextStep (coordinate: Coordinate, direction: PipeDirection, directionId: 0 | 1): Coordinate {
+function nextStep (coordinate: Coordinate, direction: PipeDirection, directionId: number): Coordinate {
   let curId = 0
   if (direction[0] != null) {
     for (const x of direction[0]) {
@@ -98,9 +98,9 @@ function pipeConnectedTo (
 function typeOfPipe (
   grid: AnimalGrid,
   map: PipeMap,
-  x: number,
-  y: number
+  coord: Coordinate
 ): PipeType {
+  const { x, y } = coord
   const tl = { x: x - 1, y: y - 1 }
   const br = { x: x + 1, y: y + 1 }
   const connectedPipes: Coordinate[] = []
@@ -129,43 +129,39 @@ function typeOfPipe (
 function traversePipes (
   grid: AnimalGrid,
   map: PipeMap
-): void {
+): number {
   const createId = (x: number, y: number): string => `${x}:${y}`
   const coordToId = (coord: Coordinate): string => createId(coord.x, coord.y)
-  const r = grid.startPos.y
-  const c = grid.startPos.x
-  const traversed: { [key: string]: boolean } = {
-    [createId(c, r)]: true
-  }
-  const ns = typeOfPipe(grid, map, c, r)
-  if (map[ns] == null) throw new Error('no directions for current pipe')
-  const directions = map[ns]
-  const ptrs = map[ns]?.flat().map(() => [c, r])
-  console.log(ptrs, directions)
-  if (ptrs == null) throw new Error('couldnt allocated ptrs')
-  while (true) {
-    for (let i = 0; i < ptrs.length; i++) {
-      for (let di = 0; di < directions[i].length; di++) {
-        let next: Coordinate | undefined
-        let ptrNext = 0
-        while (next == null && ptrNext < 2) { // hardcoded for now
-          const temp = nextStep(ptrs[i], directions[i], ptrNext)
-          const coordId = coordToId(temp)
-          if (traversed[coordId] == null) {
-            next = temp
-            break
-          }
-          ptrNext += 1
-        }
+  const start = grid.startPos
+  const ns = typeOfPipe(grid, map, start)
+  let directions = map[ns]
+  let traverseLength = 0
+  if (directions != null) {
+    const traversed = { [coordToId(start)]: true }
+    let directionId = 0
+    let pos = start
+    while (directions != null) {
+      const next = nextStep(pos, directions, directionId)
+      if (next == null) break
+      const nextId = coordToId(next)
+      const pipe = grid.grid[next.y][next.x] as PipeType
+      if (traversed[nextId]) {
+        directionId = (directionId + 1)
+      } else if (traversed[nextId] == null) {
+        console.log(traverseLength, nextId, pos.x, pos.y, pipe)
+        traversed[nextId] = true
+        pos = next
+        directions = map[pipe]
+        directionId = 0
+        traverseLength += 1
       }
-      break
     }
-    break
   }
+  return traverseLength
 }
 
 export function main (): void {
-  const input = fs.readFileSync('./data/10/example-1.txt').toString()
+  const input = fs.readFileSync('./data/10/full.txt').toString()
   const grid = parsePipes(input, 'S')
   const result = traversePipes(grid, {
     '|': [null, [Direction.North, Direction.South]],
@@ -175,5 +171,5 @@ export function main (): void {
     7: [[Direction.West], [Direction.South]],
     F: [[Direction.East], [Direction.South]]
   })
-  console.log(grid)
+  console.log('res', Math.ceil((result / 2)))
 }
