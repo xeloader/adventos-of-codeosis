@@ -1,3 +1,3 @@
-import { main } from './09'
+import { main } from './10'
 
 main()
